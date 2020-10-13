@@ -29,53 +29,96 @@ def threadCaricamento():
 
 	global thread_stop
 
-	while thread_stop:
+	while True:
 
+		if not thread_stop:
+			break
 		lbl1["text"] = "Caricamento."
+		if not thread_stop:
+			break
 		time.sleep(1)
+		if not thread_stop:
+			break
 		lbl1["text"] = "Caricamento.."
+		if not thread_stop:
+			break
 		time.sleep(1)
+		if not thread_stop:
+			break
 		lbl1["text"] = "Caricamento..."
+		if not thread_stop:
+			break
 		time.sleep(1)
+		if not thread_stop:
+			break
 
 def threadScarica(command):
 
-	process = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, stdin = subprocess.PIPE)
+	global thread_stop
 
-	output, error = process.communicate()
+	ErrLvl = 0
+
+	commandSplit = command.split('*')
+
+	for cmd in commandSplit:
+
+		process = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, stdin = subprocess.PIPE)
+
+		output, error = process.communicate()
+
+		thread_stop = False
+
+		if error:
+
+			ERR = "is not a valid URL" in format(error)
+			if ERR:
+				ErrLvl = 1
+				break
+
+			ERR = "Unable to extract video data"  in format(error)
+			if ERR:
+				ErrLvl = 2
+				break
+
+			ERR = "looks truncated" in format(error)
+			if ERR:
+				ErrLvl = 3
+				break
+
+		if output:
+
+			Out = "Deleting original file" in format(output)
+			if Out:
+				ErrLvl = 4
+				
+
+		btnScarica["state"] = 'normal'
+
+		print("Output:" + format(output))
+		print("Error:" + format(error))
 
 	thread_stop = False
+	time.sleep(1)
 
-	if error:
+	if ErrLvl == 1:
+		lbl1["text"] = "L'Url non e' valido"
 
-		ERR = "is not a valid URL" in format(error)
-		if ERR:
-			lbl1["text"] = "L'Url non e' valido"
+	if ErrLvl == 2:
+		lbl1["text"] = "L'Url e' sbagliato"
 
-		ERR = "Unable to extract video data"  in format(error)
-		if ERR:
-			lbl1["text"] = "L'Url e' sbagliato"
+	if ErrLvl == 3:
+		lbl1["text"] = "L'Url e' incompleto"
 
-		ERR = "looks truncated" in format(error)
-		if ERR:
-			lbl1["text"] = "L'Url e' incompleto"
+	if ErrLvl == 4:
+		lbl1["text"] = "Download completato"
 
-	if output:
-
-		Out = "Deleting original file" in format(output)
-		print(Out)
-		if Out:
-			lbl1["text"] = "Download completato"
-
-	btnScarica["state"] = 'normal'
-
-	print("Output:" + format(output))
-	print("Error:" + format(error))
 
 
 def scarica():
 
 	global thread_stop
+
+	cmd = []
 
 	btnScarica["state"] = 'disable'
 
@@ -91,10 +134,22 @@ def scarica():
 	#DirDest = D.replace("/", "//")
 	Dirr = '"' + DirDest + "/%(title)s.%(ext)s" + '"'
 
-	command = "youtube-dl --extract-audio --audio-format mp3 -o" + " " + Dirr + " " + Url.get()
+	if Mp3.get():
 
-	scaricaThr = threading.Thread(target = threadScarica, args = (command,), daemon = True)
-	scaricaThr.start()
+		command = "youtube-dl --extract-audio --audio-format mp3 -o" + " " + Dirr + " " + Url.get()
+		cmd.append(command)
+
+	if Mp4.get():
+
+		if Mp3.get():
+
+			command = "youtube-dl -f mp4 -o" + " " + Dirr + " " + Url.get()
+			cmd.append(command)
+
+	for comm in cmd:
+		
+		scaricaThr = threading.Thread(target = threadScarica, args = (comm,), daemon = True)
+		scaricaThr.start()
 
 
 
@@ -117,7 +172,7 @@ def getUrl():
 
 		else:
 
-			lbl1["text"] = 'Devi inserire un persorso'
+			lbl1["text"] = 'Devi inserire un percorso'
 
 		
 		#lbl1 = Label(frame2, text = "Nice choice")
@@ -131,9 +186,6 @@ def getUrl():
 		#lbl1.pack()
 
 	Urlq = Url.get()
-	print(Mp3.get())
-	print(Mp4.get())
-
 
 lbl1 = Label(frame2, text = "")
 lbl1.pack()
